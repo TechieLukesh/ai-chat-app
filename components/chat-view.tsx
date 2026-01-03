@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { useSession, signIn, signOut } from "next-auth/react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -61,10 +61,26 @@ function MarkdownRenderer({ content }: { content: string }) {
           ),
           p: ({ children }) => <p className="leading-relaxed">{children}</p>,
           ul: ({ children }) => (
-            <ul className="list-disc pl-6 space-y-1">{children}</ul>
+            <ul className="list-disc pl-6 space-y-1">
+              {React.Children.map(children, (child, i) =>
+                React.isValidElement(child)
+                  ? React.cloneElement(child, {
+                      key: child.key ?? `md-ul-${i}`,
+                    })
+                  : child
+              )}
+            </ul>
           ),
           ol: ({ children }) => (
-            <ol className="list-decimal pl-6 space-y-1">{children}</ol>
+            <ol className="list-decimal pl-6 space-y-1">
+              {React.Children.map(children, (child, i) =>
+                React.isValidElement(child)
+                  ? React.cloneElement(child, {
+                      key: child.key ?? `md-ol-${i}`,
+                    })
+                  : child
+              )}
+            </ol>
           ),
           li: ({ children }) => <li className="leading-relaxed">{children}</li>,
           a: ({ href, children }) => (
@@ -121,7 +137,7 @@ function MarkdownRenderer({ content }: { content: string }) {
   );
 }
 
-export default function ChatView() {
+export default function ChatView({ conversationId }: { conversationId?: string }) {
   const formRef = useRef<HTMLFormElement>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
@@ -147,28 +163,35 @@ export default function ChatView() {
 
   useEffect(() => {
     async function loadHistory() {
-      if (!sessionId || !authenticated) return;
+      if (!authenticated) return;
       try {
-        const res = await fetch(
-          `/api/chat?sessionId=${encodeURIComponent(sessionId)}`,
-          { credentials: "include" }
-        );
+        if (conversationId) {
+          const res = await fetch(`/api/conversations/${encodeURIComponent(conversationId)}`, {
+            credentials: "include",
+          });
+          if (!res.ok) return;
+          const data = await res.json();
+          setMessages(
+            (data.messages || []).map((m: any) => ({ id: m.id, role: m.role, content: m.content }))
+          );
+          return;
+        }
+
+        if (!sessionId) return;
+        const res = await fetch(`/api/chat?sessionId=${encodeURIComponent(sessionId)}`, {
+          credentials: "include",
+        });
         if (!res.ok) return;
         const data = await res.json();
-        // data.messages: { id, role, content }
         setMessages(
-          data.messages.map((m: any) => ({
-            id: m.id,
-            role: m.role,
-            content: m.content,
-          }))
+          (data.messages || []).map((m: any) => ({ id: m.id ?? crypto.randomUUID(), role: m.role, content: m.content }))
         );
       } catch {
         // ignore
       }
     }
     loadHistory();
-  }, [sessionId, authenticated]);
+  }, [sessionId, authenticated, conversationId]);
 
   async function handleSend(text: string) {
     if (!sessionId || !authenticated) return;
@@ -201,6 +224,7 @@ export default function ChatView() {
               content: m.content,
             })),
             sessionId,
+            conversationId: conversationId ?? null,
           }),
         });
 
@@ -258,6 +282,15 @@ export default function ChatView() {
           setLoading(false);
           return;
         }
+
+        const convoId = res.headers.get("x-conversation-id");
+        try {
+          if (convoId && typeof window !== "undefined") {
+            window.dispatchEvent(
+              new CustomEvent("conversation-created", { detail: { id: convoId } })
+            );
+          }
+        } catch {}
 
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
@@ -324,8 +357,8 @@ export default function ChatView() {
 
       <main className="flex-1 overflow-y-auto rounded-lg border border-border bg-card">
         <ol className="p-4 space-y-4">
-          {messages.map((m) => (
-            <li key={m.id} className="space-y-2">
+          {messages.map((m, idx) => (
+            <li key={m.id ?? `msg-${idx}`} className="space-y-2">
               <div className="text-xs text-muted-foreground">
                 {m.role === "user" ? "You" : "Assistant"}
               </div>

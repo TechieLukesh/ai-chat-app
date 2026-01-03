@@ -31,7 +31,8 @@ export async function POST(req: Request) {
     const {
       messages,
       sessionId,
-    }: { messages: ClientMessage[]; sessionId?: string } = parsedBody;
+      conversationId,
+    }: { messages: ClientMessage[]; sessionId?: string; conversationId?: string } = parsedBody;
 
     // authenticate and get server session
     const { getServerSession } = await import("next-auth");
@@ -88,21 +89,29 @@ export async function POST(req: Request) {
     // Persist conversation and latest user message to DB
     const { prisma } = await import("../../../lib/prisma");
 
-    // upsert conversation by clientSessionId if provided, otherwise create
-    let conversation = null;
-    if (sessionId) {
-      conversation = await prisma.chatConversation.findUnique({
-        where: { clientSessionId: sessionId },
-      });
-    }
-    if (!conversation) {
-      conversation = await prisma.chatConversation.create({
-        data: {
-          title: null,
-          userId,
-          clientSessionId: sessionId || sid,
-        },
-      });
+    // If a conversationId was provided, load and validate ownership
+    let conversation: any = null;
+    if (conversationId) {
+      conversation = await prisma.chatConversation.findUnique({ where: { id: conversationId } });
+      if (!conversation || conversation.userId !== userId) {
+        return new Response("Conversation not found", { status: 404 });
+      }
+    } else {
+      // upsert conversation by clientSessionId if provided, otherwise create
+      if (sessionId) {
+        conversation = await prisma.chatConversation.findUnique({
+          where: { clientSessionId: sessionId },
+        });
+      }
+      if (!conversation) {
+        conversation = await prisma.chatConversation.create({
+          data: {
+            title: null,
+            userId,
+            clientSessionId: sessionId || sid,
+          },
+        });
+      }
     }
 
     // store the last user message (optimistic: assume messages includes latest user msg at the end)
@@ -340,6 +349,23 @@ export async function POST(req: Request) {
                 content: fullText,
               },
             });
+            // Also update the in-memory conversation store so GET /api/chat returns the assistant reply
+            try {
+              const existing = conversations.get(sid);
+              const assistantMsg = { role: "assistant", content: fullText };
+              if (existing) {
+                existing.messages = existing.messages.concat([assistantMsg]);
+                existing.expiresAt = Date.now() + CONVO_TTL_MS;
+                conversations.set(sid, existing);
+              } else {
+                conversations.set(sid, {
+                  messages: [assistantMsg],
+                  expiresAt: Date.now() + CONVO_TTL_MS,
+                });
+              }
+            } catch (e) {
+              console.error("failed updating in-memory convo", e);
+            }
           }
         } catch (e) {
           // log and continue; streaming already finished for client
@@ -354,6 +380,7 @@ export async function POST(req: Request) {
         "Content-Type": "text/plain; charset=utf-8",
         "Cache-Control": "no-cache",
         "X-Accel-Buffering": "no",
+        "X-Conversation-Id": conversation?.id || "",
       },
     });
   } catch (err: any) {

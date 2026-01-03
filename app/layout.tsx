@@ -6,6 +6,7 @@ import "./globals.css";
 import NextAuthProvider from "../components/next-auth-provider";
 import AuthButton from "../components/auth-button";
 import ConsoleFilter from "../components/console-filter";
+import ConversationsSidebar from "../components/conversations-sidebar";
 
 export const metadata: Metadata = {
   title: "Real time chat",
@@ -25,7 +26,7 @@ export default function RootLayout({
           <div style={{ position: "absolute", right: 16, top: 12 }}>
             <AuthButton />
           </div>
-          {/* ConversationsPanel removed per user request */}
+          <ConversationsSidebar />
           {children}
         </NextAuthProvider>
         <Analytics />

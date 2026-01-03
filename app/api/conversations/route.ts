@@ -5,12 +5,31 @@ export async function POST(req: Request) {
     const { getServerSession } = await import("next-auth/next");
     const { authOptions } = await import("../../../lib/auth");
     const session: any = await getServerSession(authOptions as any);
-    if (!session?.user?.id)
+    let userId: string | null = null;
+    if (session?.user?.id) {
+      userId = session.user.id as string;
+    } else {
+      // fallback: try to read next-auth session token cookie and lookup in DB
+      try {
+        const cookie = req.headers.get("cookie") || "";
+        const m = cookie.match(/next-auth.session-token=([^;\s]+)/);
+        const token = m ? decodeURIComponent(m[1]) : null;
+        if (token) {
+          const { prisma } = await import("../../../lib/prisma");
+          const dbSession = await prisma.session.findUnique({
+            where: { sessionToken: token },
+          });
+          if (dbSession) userId = dbSession.userId;
+        }
+      } catch (e) {
+        console.error("session fallback error", e);
+      }
+    }
+    if (!userId)
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { "Content-Type": "application/json" },
       });
-    const userId = session.user.id as string;
 
     const body = await req.json().catch(() => ({}));
     const { title, clientSessionId } = body;
@@ -41,12 +60,30 @@ export async function GET(req: Request) {
     const { getServerSession } = await import("next-auth/next");
     const { authOptions } = await import("../../../lib/auth");
     const session: any = await getServerSession(authOptions as any);
-    if (!session?.user?.id)
+    let userId: string | null = null;
+    if (session?.user?.id) {
+      userId = session.user.id as string;
+    } else {
+      try {
+        const cookie = req.headers.get("cookie") || "";
+        const m = cookie.match(/next-auth.session-token=([^;\s]+)/);
+        const token = m ? decodeURIComponent(m[1]) : null;
+        if (token) {
+          const { prisma } = await import("../../../lib/prisma");
+          const dbSession = await prisma.session.findUnique({
+            where: { sessionToken: token },
+          });
+          if (dbSession) userId = dbSession.userId;
+        }
+      } catch (e) {
+        console.error("session fallback error", e);
+      }
+    }
+    if (!userId)
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { "Content-Type": "application/json" },
       });
-    const userId = session.user.id as string;
 
     const convos = await prisma.chatConversation.findMany({
       where: { userId },
