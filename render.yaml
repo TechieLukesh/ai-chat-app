@@ -33,7 +33,6 @@ databases:
     plan: starter
     # Optional: set region to match your web service
     # region: oregon
-
 # Notes:
 # - After creating the `chatdb` Render database, copy the Internal Database URL
 #   into the `DATABASE_URL` env var above (or set it via the Render dashboard).
