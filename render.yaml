@@ -1,0 +1,40 @@
+# Render manifest for deploying the app and a managed Postgres instance.
+# Replace placeholder values with your actual values in the Render dashboard or
+# directly in this file before pushing (avoid committing real secrets).
+
+services:
+  - type: web
+    name: realtime-chat-web
+    env: node
+    plan: free
+    # Optional: set region to match your DB (e.g. oregon)
+    # region: oregon
+    buildCommand: >-
+      npx -y pnpm@latest install --frozen-lockfile && npx prisma generate && npm run build
+    startCommand: >-
+      npm run start:prod
+    envVars:
+      - key: DATABASE_URL
+        # Placeholder. Replace with the Internal Database URL from the Render Postgres instance.
+        value: "postgresql://<DB_USER>:<DB_PASS>@<DB_HOST>:5432/<DB_NAME>?schema=public"
+      - key: NEXTAUTH_URL
+        value: "https://your-service.onrender.com"
+      - key: NEXTAUTH_SECRET
+        value: "<YOUR_NEXTAUTH_SECRET>"
+      - key: GITHUB_ID
+        value: "<GITHUB_ID>"
+      - key: GITHUB_SECRET
+        value: "<GITHUB_SECRET>"
+      - key: OPENAI_API_KEY
+        value: "<OPENAI_API_KEY>"
+
+databases:
+  - name: chatdb
+    plan: starter
+    # Optional: set region to match your web service
+    # region: oregon
+
+# Notes:
+# - After creating the `chatdb` Render database, copy the Internal Database URL
+#   into the `DATABASE_URL` env var above (or set it via the Render dashboard).
+# - Do NOT commit real secrets. Use Render's Environment variables UI for production secrets.
