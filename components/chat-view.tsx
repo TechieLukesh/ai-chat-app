@@ -137,7 +137,11 @@ function MarkdownRenderer({ content }: { content: string }) {
   );
 }
 
-export default function ChatView({ conversationId }: { conversationId?: string }) {
+export default function ChatView({
+  conversationId,
+}: {
+  conversationId?: string;
+}) {
   const formRef = useRef<HTMLFormElement>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
@@ -166,25 +170,39 @@ export default function ChatView({ conversationId }: { conversationId?: string }
       if (!authenticated) return;
       try {
         if (conversationId) {
-          const res = await fetch(`/api/conversations/${encodeURIComponent(conversationId)}`, {
-            credentials: "include",
-          });
+          const res = await fetch(
+            `/api/conversations/${encodeURIComponent(conversationId)}`,
+            {
+              credentials: "include",
+            }
+          );
           if (!res.ok) return;
           const data = await res.json();
           setMessages(
-            (data.messages || []).map((m: any) => ({ id: m.id, role: m.role, content: m.content }))
+            (data.messages || []).map((m: any) => ({
+              id: m.id,
+              role: m.role,
+              content: m.content,
+            }))
           );
           return;
         }
 
         if (!sessionId) return;
-        const res = await fetch(`/api/chat?sessionId=${encodeURIComponent(sessionId)}`, {
-          credentials: "include",
-        });
+        const res = await fetch(
+          `/api/chat?sessionId=${encodeURIComponent(sessionId)}`,
+          {
+            credentials: "include",
+          }
+        );
         if (!res.ok) return;
         const data = await res.json();
         setMessages(
-          (data.messages || []).map((m: any) => ({ id: m.id ?? crypto.randomUUID(), role: m.role, content: m.content }))
+          (data.messages || []).map((m: any) => ({
+            id: m.id ?? crypto.randomUUID(),
+            role: m.role,
+            content: m.content,
+          }))
         );
       } catch {
         // ignore
@@ -287,7 +305,9 @@ export default function ChatView({ conversationId }: { conversationId?: string }
         try {
           if (convoId && typeof window !== "undefined") {
             window.dispatchEvent(
-              new CustomEvent("conversation-created", { detail: { id: convoId } })
+              new CustomEvent("conversation-created", {
+                detail: { id: convoId },
+              })
             );
           }
         } catch {}
@@ -335,7 +355,7 @@ export default function ChatView({ conversationId }: { conversationId?: string }
   }
 
   return (
-    <div className="flex flex-col h-[100dvh] max-w-2xl mx-auto px-4">
+    <div className="flex flex-col h-dvh max-w-2xl mx-auto px-4">
       <header className="py-6">
         <h1 className="text-2xl font-semibold text-pretty">Realtime Chat</h1>
         <p className="text-sm text-muted-foreground">Streaming responses</p>

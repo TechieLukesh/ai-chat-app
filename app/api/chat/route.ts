@@ -32,7 +32,11 @@ export async function POST(req: Request) {
       messages,
       sessionId,
       conversationId,
-    }: { messages: ClientMessage[]; sessionId?: string; conversationId?: string } = parsedBody;
+    }: {
+      messages: ClientMessage[];
+      sessionId?: string;
+      conversationId?: string;
+    } = parsedBody;
 
     // authenticate and get server session
     const { getServerSession } = await import("next-auth");
@@ -92,7 +96,9 @@ export async function POST(req: Request) {
     // If a conversationId was provided, load and validate ownership
     let conversation: any = null;
     if (conversationId) {
-      conversation = await prisma.chatConversation.findUnique({ where: { id: conversationId } });
+      conversation = await prisma.chatConversation.findUnique({
+        where: { id: conversationId },
+      });
       if (!conversation || conversation.userId !== userId) {
         return new Response("Conversation not found", { status: 404 });
       }
@@ -352,7 +358,10 @@ export async function POST(req: Request) {
             // Also update the in-memory conversation store so GET /api/chat returns the assistant reply
             try {
               const existing = conversations.get(sid);
-              const assistantMsg = { role: "assistant", content: fullText };
+              const assistantMsg: ClientMessage = {
+                role: "assistant",
+                content: fullText,
+              };
               if (existing) {
                 existing.messages = existing.messages.concat([assistantMsg]);
                 existing.expiresAt = Date.now() + CONVO_TTL_MS;

@@ -3,7 +3,7 @@ import { prisma } from "../../../../lib/prisma";
 async function getUserIdFromRequest(req: Request) {
   try {
     const { getServerSession } = await import("next-auth/next");
-    const { authOptions } = await import("../../../lib/auth");
+    const { authOptions } = await import("../../../../lib/auth");
     const session: any = await getServerSession(authOptions as any);
     if (session?.user?.id) return session.user.id as string;
   } catch (e) {
