@@ -7,6 +7,7 @@
     "dev": "next dev",
     "lint": "next lint",
     "start": "next start -p $PORT",
+    "start:prod": "sh -lc 'if [ -n \"$DATABASE_URL\" ]; then npx prisma migrate deploy; fi && next start -p $PORT'",
     "postinstall": "prisma generate"
   },
   "dependencies": {
